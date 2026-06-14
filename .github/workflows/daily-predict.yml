@@ -8,24 +8,22 @@ on:
 jobs:
   predict:
     runs-on: ubuntu-latest
-    
-    # 徹底解決 Node.js 警告
     env:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
       ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true
-    
+
     steps:
       - uses: actions/checkout@v4
       
       - name: 設定 Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'   # 升級到 3.11 更穩定
+          python-version: '3.11'
       
       - name: 安裝套件
         run: pip install requests
       
-      - name: 執行世界盃預測
+      - name: 執行預測
         env:
           BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
           CHANNEL_ID: "@my_ball_predict_3034"
