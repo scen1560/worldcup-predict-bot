@@ -64,4 +64,3 @@ if __name__ == "__main__":
         report = generate_8_blocks_report(m["home"], m["away"], odds)
         send_to_telegram(report)
         print(f"已發送：{m['home']} vs {m['away']}")
-Add predict.py
