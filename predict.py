@@ -1,3 +1,19 @@
+def send_to_telegram(text):
+    print("🚀 準備發送到 Telegram...")
+    print(f"使用的 CHANNEL_ID: {CHANNEL_ID}")
+    
+    url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
+    payload = {"chat_id": CHANNEL_ID, "text": text, "parse_mode": "Markdown"}
+    
+    try:
+        response = requests.post(url, json=payload, timeout=10)
+        print("Telegram API 回應:", response.json())
+        if response.status_code == 200:
+            print("🎉 成功發送到頻道！")
+        else:
+            print("❌ 發送失敗:", response.text)
+    except Exception as e:
+        print("❌ 發送異常:", str(e))
 def generate_with_grok(home_en, away_en):
     home = translate_team_name(home_en)
     away = translate_team_name(away_en)
