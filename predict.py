@@ -1,57 +1,22 @@
-import requests
-import os
-from datetime import datetime, timedelta
-
-# ====================== 設定 ======================
-BOT_TOKEN = os.getenv("BOT_TOKEN")
-CHANNEL_ID = os.getenv("CHANNEL_ID", "@my_ball_predict_3034")
-GROK_API_KEY = os.getenv("GROK_API_KEY")
-
-# ====================== 球隊中文映射 ======================
-team_name_map = {
-    "Ivory Coast": "科特迪瓦", "Ecuador": "厄瓜多爾",
-    "Netherlands": "荷蘭", "Japan": "日本",
-    "Argentina": "阿根廷", "France": "法國",
-    "Brazil": "巴西", "Germany": "德國",
-    "Spain": "西班牙", "England": "英格蘭",
-    "Unknown": "未知"
-}
-
-def translate_team_name(name):
-    return team_name_map.get(name, name)
-
-# ====================== 賽程 ======================
-def get_today_worldcup_matches():
-    print("🔄 抓取世界盃賽程...")
-    url = "https://raw.githubusercontent.com/openfootball/worldcup.json/master/2026/worldcup.json"
-    try:
-        resp = requests.get(url, timeout=15)
-        data = resp.json()
-        today = datetime.now().strftime("%Y-%m-%d")
-        matches = []
-        for m in data.get("matches", []):
-            if m.get("date") == today:
-                matches.append({"home": m.get("team1"), "away": m.get("team2")})
-        return matches[:2] if matches else [{"home": "荷蘭", "away": "日本"}]
-    except:
-        return [{"home": "科特迪瓦", "away": "厄瓜多爾"}]
-
-# ====================== 用 Grok 生成 8 大板塊 ======================
 def generate_with_grok(home_en, away_en):
     home = translate_team_name(home_en)
     away = translate_team_name(away_en)
     
-    prompt = f"""你是一位專業香港足球分析員，用香港足球術語（波膽、大細球、受讓、派彩快等）為以下世界盃比賽撰寫完整 8 大板塊預測。
+    prompt = f"""你是一位專業香港足球分析員，用香港足球術語為世界盃比賽撰寫 8 大板塊預測。
 
 比賽：{home} vs {away}
 
-要求：
-- 強調新人、傷停、最新戰意
-- 淡化歷史往績
-- 內容自然專業、像真人分析
-- 格式清晰，用 **粗體** 標題
-- 最後加入派彩快提示
-- 總結要實用"""
+請嚴格按照以下格式輸出：
+1️⃣ 預計首發陣容及理由（結合新人和傷停）
+2️⃣ 近期狀態與戰術對決
+3️⃣ 傷停情況、交手紀錄及背景動機
+4️⃣ 投注價值推薦
+5️⃣ 風險及冷門可能性
+6️⃣ 全體預測
+7️⃣ 預測比分（波膽）
+8️⃣ 最終總結（加入派彩快提示）
+
+要求：內容自然、強調最新戰意、新陣容，淡化歷史往績。"""
 
     url = "https://api.x.ai/v1/chat/completions"
     headers = {
@@ -59,41 +24,39 @@ def generate_with_grok(home_en, away_en):
         "Content-Type": "application/json"
     }
     data = {
-        "model": "grok-3",
+        "model": "grok-beta",        # ← 改用較穩定的 model
         "messages": [{"role": "user", "content": prompt}],
         "temperature": 0.7,
-        "max_tokens": 1200
+        "max_tokens": 1000
     }
     
     try:
-        response = requests.post(url, headers=headers, json=data, timeout=40)
-        if response.status_code == 200:
-            content = response.json()["choices"][0]["message"]["content"]
-            print("✅ Grok 成功生成預測內容")
-            return content
+        response = requests.post(url, headers=headers, json=data, timeout=45)
+        response.raise_for_status()   # 檢查 HTTP 錯誤
+        content = response.json()["choices"][0]["message"]["content"]
+        print("✅ Grok API 成功生成內容")
+        return content
     except Exception as e:
-        print(f"⚠️ Grok API 錯誤: {e}，使用後備模板")
-    
-    # 後備模板
-    return f"⚽️ **【世界盃：{home} vs {away}】**\nGrok 暫時無法生成，使用後備分析。\n推薦：受讓 / 大細球 2.5"
+        print(f"⚠️ Grok API 呼叫失敗: {e}")
+        # 更豐富的後備模板
+        return f'''⚽️ **【世界盃焦點：{home} vs {away}】**
 
-# ====================== 發送 ======================
-def send_to_telegram(text):
-    url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
-    payload = {"chat_id": CHANNEL_ID, "text": text, "parse_mode": "Markdown"}
-    response = requests.post(url, json=payload)
-    if response.status_code == 200:
-        print("🎉 成功發送到 Telegram 頻道！")
-    else:
-        print("❌ 發送失敗:", response.text)
+📊 **馬會即時賠率**：主勝 2.05 | 和 3.40 | 客勝 3.30
 
-# ====================== 主程式 ======================
-if __name__ == "__main__":
-    print("🚀 世界盃預測工具啟動...")
-    matches = get_today_worldcup_matches()
-    
-    for m in matches:
-        print(f"📝 正在分析：{m['home']} vs {m['away']}")
-        report = generate_with_grok(m["home"], m["away"])
-        send_to_telegram(report)
-        print(f"✅ 已處理：{translate_team_name(m['home'])} vs {translate_team_name(m['away'])}\n")
+**1️⃣ 預計首發陣容及理由**  
+{home}：新陣容上陣，教練安排新人適應世界盃節奏。
+
+**2️⃣ 近期狀態與戰術對決**  
+{home}新進攻線火力強。
+
+**3️⃣ 傷停、背景動機**  
+最新戰意高，陣容大變，歷史往績參考價值低。
+
+**4️⃣ 投注價值推薦**  
+推薦 **受讓** 或 **大細球 2.5**
+
+**7️⃣ 預測比分（波膽）**  
+**2-1**（{home}勝）
+
+**8️⃣ 最終總結**  
+看好{home}小勝，建議小注受讓。中場用派彩快調整！理性投注。'''
